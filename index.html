@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>El celular y el contador reversible</title>
+<style>
+:root{--bg:#eef1f5;--ink:#0f1b2d;--card:#fff;--mut:#52617a;--acc:#0b7a50;--line:#d3dae4;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1320;--ink:#e8eef7;--card:#14233a;--mut:#9fb0c9;--acc:#3ddc97;--line:#2a3b55}}
+:root[data-theme="dark"]{--bg:#0b1320;--ink:#e8eef7;--card:#14233a;--mut:#9fb0c9;--acc:#3ddc97;--line:#2a3b55}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px}
+h1{font-size:22px;margin:0 0 4px;text-align:center}
+.sub{text-align:center;color:var(--mut);margin:0 0 20px;font-size:14px}
+.wrap{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;align-items:flex-start;max-width:1000px;margin:0 auto}
+.phone{width:300px;height:610px;background:#0a1220;border-radius:40px;padding:14px;border:3px solid #26364d;display:flex;flex-direction:column;color:#eaf1fb;flex:none}
+.status{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 14px 8px}
+.bars{display:inline-flex;gap:3px}
+.bars i{width:10px;height:16px;border-radius:3px;background:#2a3b55;display:block}
+.bars i.on{background:#3ddc97}
+.big .bars{gap:8px}.big .bars i{width:42px;height:90px;border-radius:10px}
+.screen{flex:1;background:#101c30;border-radius:24px;padding:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;overflow:hidden}
+.digit{font-size:64px;font-weight:700;color:#3ddc97;line-height:1}
+.st{font-size:14px;color:#9fb0c9;min-height:20px}
+button{font:inherit;cursor:pointer}
+.act{background:#3ddc97;color:#06231a;border:0;border-radius:14px;padding:12px 18px;font-weight:700;font-size:15px}
+.act.off{background:#2a3b55;color:#eaf1fb}
+.emoji{font-size:54px}
+.pulse{animation:pl 1s ease-in-out infinite}
+@keyframes pl{50%{transform:scale(1.15)}}
+.dock{display:flex;justify-content:space-around;padding-top:10px}
+.dock button{background:none;border:0;color:#9fb0c9;font-size:10px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;border-radius:10px;min-width:44px}
+.dock button span{font-size:22px}
+.dock button.sel{background:#1c2d47;color:#fff}
+.bar{width:100%;height:8px;background:#2a3b55;border-radius:4px;overflow:hidden}
+.bar b{display:block;height:100%;background:#f5b942;width:0}
+.chain{display:flex;align-items:center;gap:6px;font-size:12px}
+.chip{background:#1c2d47;border-radius:8px;padding:8px 10px;min-width:54px}
+.chip b{display:block;font-size:20px;color:#3ddc97}
+.panel{width:min(100%,520px);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;flex:1 1 360px}
+.panel h2{margin:0 0 8px;font-size:20px;color:var(--acc)}
+.panel p{margin:0 0 12px;line-height:1.5}
+pre{background:#0a1220;color:#d7e3f4;padding:14px;border-radius:12px;overflow-x:auto;font-size:13px;line-height:1.5;margin:0 0 14px}
+.regs{display:flex;flex-wrap:wrap;gap:8px}
+.reg{border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;color:var(--mut)}
+.reg b{color:var(--ink);font-family:ui-monospace,Consolas,monospace}
+.note{font-size:12px;color:var(--mut);margin-top:10px}
+input[type=range]{width:100%}
+</style>
+</head>
+<body>
+<h1>Contador reversible by IA - Dennys Lopéz - Johan Escobar</h1>
+<p class="sub">Conecta el cargador (X = 0, sube) o juega (X = 1, baja).</p>
+<div class="wrap">
+  <div class="phone">
+    <div class="status"><span id="hora">9:41</span><span class="bars bars-live"></span></div>
+    <div class="screen" id="screen"></div>
+    <nav class="dock" id="dock"></nav>
+  </div>
+  <aside class="panel">
+    <h2 id="pt"></h2>
+    <p id="px"></p>
+    <pre id="pc"></pre>
+    <div class="regs" id="regs"></div>
+    <p class="note">Si no hay cargador ni juego, el reloj queda en pausa.</p>
+  </aside>
+</div>
+<script>
+var q2=0,q1=0,q0=0,mode='idle',app='bateria',period=1.2,el=0,sw=0,s1=0,s2=0;
+var APPS=[
+ {id:'bateria',ico:'🔋',name:'Batería',t:'App Batería: las salidas z',
+  x:'Las cuatro barras son la salida z. Es una máquina de Moore: z depende solo del nivel guardado, no de X.',
+  c:'assign z[3] = q2;\nassign z[2] = q2 | (q1 & q0);\nassign z[1] = q2 | q1;\nassign z[0] = q2 | q1 | q0;'},
+ {id:'cargador',ico:'🔌',name:'Cargador',t:'App Cargador: X = 0 (cuenta adelante)',
+  x:'Con el cargador conectado, X vale 0. En cada pulso del reloj el controlador suma un nivel.',
+  c:'// X = 0 → cargando\nassign j1 = (~x & q0) | (x & q2);\nassign k1 = q1 & (x ^ q0);\nassign j0 = (~x & ~q2) | (x & (q2 | q1));'},
+ {id:'juego',ico:'🎮',name:'Juego',t:'App Juego: X = 1 (cuenta atrás)',
+  x:'Jugando, X vale 1. El mismo circuito, con las mismas ecuaciones, ahora resta un nivel en cada pulso.',
+  c:'// X = 1 → descargando\nassign j2 = (~x & q1 & q0) | (x & ~q1 & ~q0);\nassign k2 = 1\'b1;\nassign k0 = 1\'b1;'},
+ {id:'reloj',ico:'⏱',name:'Reloj',t:'App Reloj: el pulso que actualiza el nivel',
+  x:'La placa trabaja a 100 MHz. Un divisor cuenta pulsos y conmuta clk_1hz: el nivel solo cambia en cada pulso lento.',
+  c:'if (cnt == 26\'d49_999_999) begin\n    cnt     <= 0;\n    clk_1hz <= ~clk_1hz;\nend else cnt <= cnt + 1;'},
+ {id:'modo',ico:'🔀',name:'Modo',t:'App Modo: el sincronizador de X',
+  x:'El interruptor cambia en cualquier momento. Dos flip-flops lo alinean con el reloj rápido para que el contador reciba un 0 o un 1 limpio.',
+  c:'always @(posedge clk) begin\n    x_s1 <= sw0;   // captura el interruptor\n    x_s2 <= x_s1;  // entrega X estable\nend'},
+ {id:'display',ico:'🔢',name:'Display',t:'App Display: el decodificador',
+  x:'El decodificador convierte las barras z en el dígito 0 a 4 y enciende los segmentos del display.',
+  c:'case (z)\n  4\'b0000: seg = 7\'b1000000; // 0\n  4\'b0001: seg = 7\'b1111001; // 1\n  4\'b0011: seg = 7\'b0100100; // 2\n  4\'b0111: seg = 7\'b0110000; // 3\n  4\'b1111: seg = 7\'b0011001; // 4\nendcase'}
+];
+var SEG={0:'abcdef',1:'bc',2:'abdeg',3:'abcdg',4:'bcfg'};
+var RECT={a:[10,4,40,8],b:[50,10,8,38],c:[50,52,8,38],d:[10,88,40,8],e:[2,52,8,38],f:[2,10,8,38],g:[10,46,40,8]};
+function $(i){return document.getElementById(i)}
+function lvl(){return q2*4+q1*2+q0}
+function X(){return mode==='charging'?0:1}
+function bars(n){var o='';for(var i=1;i<=4;i++)o+='<i'+(i<=n?' class="on"':'')+'></i>';return o}
+function eq(x){var n=1-x;return{j2:(n&q1&q0)|(x&(1-q1)&(1-q0)),k2:1,j1:(n&q0)|(x&q2),k1:q1&(x^q0),j0:(n&(1-q2))|(x&(q2|q1)),k0:1}}
+function ff(j,k,q){return (j&(1-q))|((1-k)&q)}
+function step(){var e=eq(X());var a=ff(e.j2,e.k2,q2),b=ff(e.j1,e.k1,q1),c=ff(e.j0,e.k0,q0);q2=a;q1=b;q0=c}
+function stateTxt(){return mode==='charging'?'⚡ Cargando (X = 0)':mode==='gaming'?'🎮 Descargando (X = 1)':'En pausa'}
+function seg7(n){var on=SEG[n]||'',s='<svg viewBox="0 0 60 100" width="90" height="150" aria-label="Display de 7 segmentos">';
+ for(var k in RECT){var r=RECT[k];s+='<rect x="'+r[0]+'" y="'+r[1]+'" width="'+r[2]+'" height="'+r[3]+'" rx="3" fill="'+(on.indexOf(k)>=0?'#ff5a4d':'#2a1a1f')+'"/>'}
+ return s+'</svg>'}
+function setMode(m){mode=(mode===m)?'idle':m;el=0;if(mode!=='idle'){sw=X();setTimeout(function(){s1=sw;upd()},400);setTimeout(function(){s2=sw;upd()},800)}render()}
+function render(){
+ var a=APPS.filter(function(z){return z.id===app})[0],h='';
+ if(app==='bateria')h='<div class="big"><span class="bars bars-live"></span></div><div class="digit dig"></div><div class="st stx"></div><div class="st">Abre Cargador o Juego</div>';
+ if(app==='cargador')h='<div class="emoji'+(mode==='charging'?' pulse':'')+'">⚡</div><span class="bars bars-live"></span><div class="digit dig"></div><button class="act'+(mode==='charging'?' off':'')+'" onclick="setMode(\'charging\')">'+(mode==='charging'?'Desconectar':'Conectar cargador')+'</button><div class="st stx"></div>';
+ if(app==='juego')h='<div class="emoji'+(mode==='gaming'?' pulse':'')+'">🎮</div><span class="bars bars-live"></span><div class="digit dig"></div><button class="act'+(mode==='gaming'?' off':'')+'" onclick="setMode(\'gaming\')">'+(mode==='gaming'?'Dejar de jugar':'Jugar')+'</button><div class="st stx"></div>';
+ if(app==='reloj')h='<div class="st">Pulso cada <b id="per">'+period.toFixed(1)+'</b> s</div><input type="range" min="0.4" max="2.5" step="0.1" value="'+period+'" oninput="period=+this.value;el=0;$(\'per\').textContent=period.toFixed(1)"><div class="bar"><b id="prog"></b></div><div class="st">Barra = cuenta del divisor</div><div class="digit dig"></div>';
+ if(app==='modo')h='<div class="chain"><div class="chip">sw0<b id="c0"></b></div>→<div class="chip">x_s1<b id="c1"></b></div>→<div class="chip">x_s2<b id="c2"></b></div></div><div class="st">Alterna Cargador o Juego y mira cómo viaja X. En la placa cada etapa tarda 10 ns; aquí se alarga para verlo.</div>';
+ if(app==='display')h='<div id="sg"></div><div class="st">z3z2z1z0 = <b id="zz"></b></div>';
+ $('screen').innerHTML=h;
+ $('pt').textContent=a.t;$('px').textContent=a.x;$('pc').textContent=a.c;
+ $('dock').innerHTML=APPS.map(function(z){return '<button class="'+(z.id===app?'sel':'')+'" onclick="app=\''+z.id+'\';render()"><span>'+z.ico+'</span>'+z.name+'</button>'}).join('');
+ upd()}
+function upd(){var n=lvl(),e=eq(X()),i,l;
+ l=document.querySelectorAll('.bars-live');for(i=0;i<l.length;i++)l[i].innerHTML=bars(n);
+ l=document.querySelectorAll('.dig');for(i=0;i<l.length;i++)l[i].textContent=n;
+ l=document.querySelectorAll('.stx');for(i=0;i<l.length;i++)l[i].textContent=stateTxt();
+ if($('prog'))$('prog').style.width=(mode==='idle'?0:el/period*100)+'%';
+ if($('c0')){$('c0').textContent=sw;$('c1').textContent=s1;$('c2').textContent=s2}
+ if($('sg')){$('sg').innerHTML=seg7(n);$('zz').textContent=[q2,q2|(q1&q0),q2|q1,q2|q1|q0].join('')}
+ $('regs').innerHTML=[['X',X()],['Q2Q1Q0',''+q2+q1+q0],['J2K2',''+e.j2+e.k2],['J1K1',''+e.j1+e.k1],['J0K0',''+e.j0+e.k0],['nivel',n]].map(function(r){return '<span class="reg">'+r[0]+' = <b>'+r[1]+'</b></span>'}).join('')}
+setInterval(function(){if(mode!=='idle'){el+=0.05;if(el>=period){el=0;step()}}upd()},50);
+render();
+</script>
+</body>
+</html>
